@@ -32,6 +32,7 @@ global record Message
   Tags: { string: string }
   Data: string
   Owner: string
+  reply: function(input: string | {string: string}): nil
 end
 
 global record TokenNotice

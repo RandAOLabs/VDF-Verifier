@@ -1,4 +1,4 @@
-local bint = require('verification.utils.bint')(2048, 32)
+local bint = require('verification.utils.bint')(4096, 32)
 local json = require('json')
 
 -- Define types
@@ -10,7 +10,8 @@ global Exponent: integer
 global SuccessMessage: string
 
 global record ValidateCheckpointData 
-  request_id: integer
+  request_id: string
+  segment_id: string
   checkpoint_input: string
   modulus: string
   expected_output: string
@@ -25,7 +26,7 @@ end
 -- Initialize global variables
 Name = Name or "Verifier"
 Description = Description or "RandAO Verification Process"
-TotalSquarings = 1000000
+TotalSquarings = 10000
 NumSegments = 10
 Exponent = 2
 SuccessMessage = "200: Success"
@@ -65,10 +66,12 @@ global function computedCheckpointOutput(input: string, modulus: string, expecte
   local bintExpectedOutput = bint.fromstring(expectedOutput)
   print("Expected Output: " .. json.encode(bint.tobase(bintExpectedOutput, 10, true)))
   
-  for _ = 1, segmentLength do
-    updatedResult = bint.upowmod(bintInput, bint.frominteger(2), bintModulus)  
-
+  for i = 1, segmentLength do
+    updatedResult = bint.upowmod(updatedResult, bint.frominteger(Exponent), bintModulus)  
+    print("Updated result at stage: " .. i .. " " .. json.encode(bint.tobase(updatedResult, 10, true)))
   end
+
+  print("Real Output: " .. tostring(bint.tobase(updatedResult, 10, true)))
 
   if bint.eq(updatedResult, bintExpectedOutput) then
     print("matched")
@@ -79,23 +82,34 @@ global function computedCheckpointOutput(input: string, modulus: string, expecte
   end
 end
 
-local function validateCheckpointHandler(msg: Message)
+local function validateCheckpointHandler(msg: Message): boolean
   print("entered checkpoint")
   local data = (json.decode(msg.Data as string) as ValidateCheckpointData)
   local request_id = data.request_id
+  local segment_id = data.segment_id
   local checkpoint_input = data.checkpoint_input
   local modulus = data.modulus
   local expected_output = data.expected_output
 
-  local success, err = computedCheckpointOutput(checkpoint_input, modulus, expected_output)
+  local success, _ = computedCheckpointOutput(checkpoint_input, modulus, expected_output)
   
-  if success then
-    ao.send(sendResponse(msg.From, "Valid ", SuccessMessage))
-  else
-    ao.send(sendResponse(msg.From, "Error", {message = "Failed to post VDF Input: " .. err}))
-  end
+  local response = {
+    request_id = request_id,
+    segment_id = segment_id,
+    valid = success,
+ }
+
+ if success then
+    msg.reply({ Data = json.encode(response) })
+    return true
+ else
+    msg.reply({ Data = "Error" })
+    return false
+ end
 end
 
 -- Add handlers
 Handlers.add('info', Handlers.utils.hasMatchingTag('Action', 'Info'), infoHandler)
 Handlers.add('validateCheckpoint', Handlers.utils.hasMatchingTag('Action', 'Validate-Checkpoint'), validateCheckpointHandler)
+
+print("Successfully loaded verification process")
