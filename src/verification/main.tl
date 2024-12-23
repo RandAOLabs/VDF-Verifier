@@ -110,7 +110,7 @@ local function validateOutputHandler(msg: Message): boolean
   local segment_id = data.segment_id
   local input = data.input
   local expected_output = data.expected_output
-  local modulus = "0xFFFFFFFFFFFFFFFF"
+  local modulus = "0x7FFFFFFFF"
 
   local success = checkModulusResult(input, modulus, expected_output)
   
