@@ -1,4 +1,3 @@
-local bint = require('verification.utils.bint')(512, 32)
 local json = require('json')
 
 -- Define types
@@ -56,64 +55,26 @@ local function infoHandler(msg: Message)
   })
 end
 
-global function computedCheckpointOutput(input: string, modulus: string, expectedOutput: string): boolean, string
-  print("entered")
-  assert((TotalSquarings % NumSegments == 0), "Failure: Total Squarings and Number of Segments")
-  local segmentLength = TotalSquarings / NumSegments
-  print("Segment Length: " .. json.encode(segmentLength))
-
-  local bintInput = bint.fromstring(input)
-  print("Input: " .. json.encode(bint.tobase(bintInput, 10, true)))
-
-  local updatedResult: BigInteger = bintInput
-
-  local bintModulus = bint.fromstring(modulus)
-  print("Modulus: " .. json.encode(bint.tobase(bintModulus, 10, true)))
-
-  local bintExpectedOutput = bint.fromstring(expectedOutput)
-  print("Expected Output: " .. json.encode(bint.tobase(bintExpectedOutput, 10, true)))
-  
-  for i = 1, segmentLength do
-    updatedResult = bint.upowmod(updatedResult, bint.frominteger(Exponent), bintModulus)  
-    print("Updated result at stage: " .. i .. " " .. json.encode(bint.tobase(updatedResult, 10, true)))
-  end
-
-  print("Real Output: " .. tostring(bint.tobase(updatedResult, 10, true)))
-
-  if bint.eq(updatedResult, bintExpectedOutput) then
-    print("matched")
-    return true, ""
-  else
-    print("failed")
-    return false, "Failure: Expected =/= Computed Output"
-  end
+local function pingHandler(msg: Message): boolean
+  print("entered ping")
+  msg.reply({ Action = "Pong", Data = SuccessMessage })
+  return true
 end
 
-local function checkModulusResult(input: string, modulus: string, expectedOutput: string): boolean
-  local bintInput = bint.fromstring(input)
-  print("Input: " .. json.encode(bint.tobase(bintInput, 10, true)))
-  local bintModulus = bint.fromstring(modulus)
-  print("Modulus: " .. json.encode(bint.tobase(bintModulus, 10, true)))
-  local bintExpectedOutput = bint.fromstring(expectedOutput)
-  print("Expected Output: " .. json.encode(bint.tobase(bintExpectedOutput, 10, true)))
-  
-  local result = bint.umod(bintInput, bintModulus)
-  print("Result: " .. json.encode(bint.tobase(result, 10, true)))
-  return bint.eq(result, bintExpectedOutput)
-end
-
-
-local function validateOutputHandler(msg: Message): boolean
+global function validateOutputHandler(msg: Message): boolean
   print("entered output")
   local data = (json.decode(msg.Data as string) as ValidateOutputData)
   local request_id = data.request_id
   local segment_id = data.segment_id
-  local input = data.input
+  local input = string.sub(data.input, 3)
   local expected_output = data.expected_output
-  local modulus = "0x7FFFFFFFF"
+  local modulus = "7FFFFFFFF"
 
-  local success = checkModulusResult(input, modulus, expected_output)
-  
+  print("input: " .. input .. " modulus: " .. modulus .. " expected_output: " .. expected_output)
+
+  local success = check_modulus_result(input, modulus, expected_output)
+  print("success: " .. tostring(success))
+
   local response = {
     request_id = request_id,
     valid = success,
@@ -129,17 +90,21 @@ local function validateOutputHandler(msg: Message): boolean
  end
 end
 
-local function validateCheckpointHandler(msg: Message): boolean
+global function validateCheckpointHandler(msg: Message): boolean
   print("entered checkpoint")
   local data = (json.decode(msg.Data as string) as ValidateCheckpointData)
   local request_id = data.request_id
   local segment_id = data.segment_id
-  local checkpoint_input = data.checkpoint_input
-  local modulus = data.modulus
-  local expected_output = data.expected_output
+  local checkpoint_input = string.sub(data.checkpoint_input, 3)
+  local modulus = string.sub(data.modulus, 3)
+  local expected_output = string.sub(data.expected_output, 3)
+  local exponent = tostring(math.floor(TotalSquarings / NumSegments))
 
-  local success, _ = computedCheckpointOutput(checkpoint_input, modulus, expected_output)
-  
+  print("checkpoint_input: " .. checkpoint_input .. "exponent: " .. exponent .. " modulus: " .. modulus .. " expected_output: " .. expected_output)
+
+  local success = compute_mod_exp(checkpoint_input, exponent, modulus, expected_output)
+  print("success: " .. tostring(success))
+
   local response = {
     request_id = request_id,
     segment_id = segment_id,
@@ -157,6 +122,7 @@ end
 
 -- Add handlers
 Handlers.add('info', Handlers.utils.hasMatchingTag('Action', 'Info'), infoHandler)
+Handlers.add('ping', Handlers.utils.hasMatchingTag('Action', 'Ping'), pingHandler)
 Handlers.add('validateCheckpoint', Handlers.utils.hasMatchingTag('Action', 'Validate-Checkpoint'), validateCheckpointHandler)
 Handlers.add('validateOutput', Handlers.utils.hasMatchingTag('Action', 'Validate-Output'), validateOutputHandler)
 

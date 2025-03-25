@@ -11,12 +11,12 @@ mkdir -p ./build
 mkdir -p ./build-lua
 
 # build teal
-cyan build -u
+cyan build -u --prune
 
 cd build-lua
 
 amalg.lua -s verification/main.lua -o ../build/verification.lua \
-    verification.utils.bint verification.utils.tl-utils 
+    verification.utils.tl-utils 
 
 
 # FINAL RESULT is build/main.lua

@@ -1,6 +1,7 @@
 global record ao
   id: string
   send: function(message: {string: string})
+
   record env
     record Module
       id: string
@@ -24,6 +25,14 @@ global record Handlers
     continue: function<F>(fn: F): F
   end
 end
+
+  -- Global utility functions that will be available in Lua runtime
+  global function compute_mod_exp(input: string, squarings: string, modulus: string, expected: string): boolean
+    
+  end
+  global function check_modulus_result(input: string, modulus: string, expected: string): boolean
+    
+  end
 
 global record Message
   Id: string

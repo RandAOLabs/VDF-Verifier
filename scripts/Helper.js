@@ -3,16 +3,16 @@ import { message, result, createDataItemSigner, spawn } from "@permaweb/aoconnec
 
 // Load the wallet file
 const wallet = JSON.parse(readFileSync("./wallet.json").toString(),);
-const processId = "ZLBhaNQskckeoyN_Qvzrdv-39pAqe_UGhb_FwzoX7FM"
+const processId = "wHdeq9xRwIBoNVKrTcnHXnCpEqqlTIzntV1KsQx6yKw"
 
 const request_id                 = "id"
-const checkpoint_input          = "0xf8e3b0de92842f97fb47b393f45187f2"
+const checkpoint_input          = "0x8ea473939335cbe03ab3586fb611477a1859e144ffa42e524151ea4c5f1948e"
 const modulus                   = "0x40e77a538238e49424de6139311eaee7d7f1e31a0e87b2051e1f94bb4b0ad2d"
-// const expected_output           = "0x2888fbced9adbafdda5b31e515a8c984f5d6180b7cf27ebe548b6f62f24c787"
+//const expected_output           = "0x2888fbced9adbafdda5b31e515a8c984f5d6180b7cf27ebe548b6f62f24c787"
 const segment_id                 = "id"
 
-const input = "0x3e0a75b41cec27131f1de1c832971c1083673e8c8865c6907390f89ef77f06e"
-const expected_output = "4990561140291830025"
+const input = "0x8ea473939335cbe03ab3586fb611477a1859e144ffa42e524151ea4c5f1948e"
+const expected_output = "2604593209"
 async function validateOutput() {
     let tags = [
         { name: "Action", value: "Validate-Output" },
@@ -32,7 +32,7 @@ async function validateOutput() {
           The "data" portion of the message
           If not specified a random string will be generated
         */
-        data: JSON.stringify({ request_id, segment_id,input, expected_output }),
+        data: JSON.stringify({ request_id, segment_id, input, expected_output }),
     })
 
     console.log(id)
