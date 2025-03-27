@@ -8,19 +8,23 @@ global NumSegments: number
 global Exponent: integer
 global SuccessMessage: string
 
-global record ValidateCheckpointData 
-  request_id: string
-  segment_id: string
-  checkpoint_input: string
-  modulus: string
-  expected_output: string
-end
-
-global record ValidateOutputData
+global record ValidatePuzzleData
   request_id: string
   segment_id: string
   input: string
-  expected_output: string
+  modulus: string
+  p: string
+  q: string
+end
+
+global record HashEntropyData
+  requestId: string
+  components: {string}
+end
+
+global record PhiResult
+  phi: string
+  n: string
 end
 
 global record ResponseData
@@ -61,69 +65,84 @@ local function pingHandler(msg: Message): boolean
   return true
 end
 
-global function validateOutputHandler(msg: Message): boolean
-  print("entered output")
-  local data = (json.decode(msg.Data as string) as ValidateOutputData)
+global function validatePuzzleHandler(msg: Message): boolean
+  print("entered validate puzzle")
+  local data = (json.decode(msg.Data as string) as ValidatePuzzleData)
   local request_id = data.request_id
   local segment_id = data.segment_id
-  local input = string.sub(data.input, 3)
-  local expected_output = data.expected_output
-  local modulus = "7FFFFFFFF"
+  local input = data.input
+  local modulus = data.modulus
+  local p = data.p
+  local q = data.q
+  local phi = ""
+  local n = ""
+  
+  
+  local phiResult = compute_phi_and_n(p, q) as PhiResult
 
-  print("input: " .. input .. " modulus: " .. modulus .. " expected_output: " .. expected_output)
+  if phiResult then
+    phi = phiResult.phi
+    n = phiResult.n
+    print("phi(N):" .. phi)
+    print("N = p * q:" .. n)
+  else
+    print("Computation failed.")
+    msg.reply({ Action = "Failed-Puzzle-Verification", Data = "Error" })
+    return false
+  end
 
-  local success = check_modulus_result(input, modulus, expected_output)
-  print("success: " .. tostring(success))
+  if modulus ~= n then
+    print("N != p * q")
+    msg.reply({ Action = "Failed-Puzzle-Verification", Data = "Error" })
+    return false
+  end
 
-  local response = {
-    request_id = request_id,
-    valid = success,
-    segment_id = segment_id,
- }
+  local puzzleResult = solve_time_lock_puzzle(input, tostring(TotalSquarings), modulus, n)
 
- if success then
-    msg.reply({ Action = "Post-Verification", Data = json.encode(response) })
+  if puzzleResult then
+    local response = {
+      request_id = request_id,
+      segment_id = segment_id,
+      puzzle_result = puzzleResult,
+    }
+    msg.reply({ Action = "Puzzle-Verification", Data = json.encode(response) })
     return true
  else
-    msg.reply({ Action = "Failed-Post-Verification", Data = "Error" })
+    msg.reply({ Action = "Failed-Puzzle-Verification", Data = "Error" })
     return false
  end
 end
+global function doot()
 
-global function validateCheckpointHandler(msg: Message): boolean
-  print("entered checkpoint")
-  local data = (json.decode(msg.Data as string) as ValidateCheckpointData)
-  local request_id = data.request_id
-  local segment_id = data.segment_id
-  local checkpoint_input = string.sub(data.checkpoint_input, 3)
-  local modulus = string.sub(data.modulus, 3)
-  local expected_output = string.sub(data.expected_output, 3)
-  local exponent = tostring(math.floor(TotalSquarings / NumSegments))
-
-  print("checkpoint_input: " .. checkpoint_input .. "exponent: " .. exponent .. " modulus: " .. modulus .. " expected_output: " .. expected_output)
-
-  local success = compute_mod_exp(checkpoint_input, exponent, modulus, expected_output)
-  print("success: " .. tostring(success))
-
-  local response = {
-    request_id = request_id,
-    segment_id = segment_id,
-    valid = success,
- }
-
- if success then
-    msg.reply({ Action = "Post-Verification", Data = json.encode(response) })
-    return true
- else
-    msg.reply({ Action = "Failed-Post-Verification", Data = "Error" })
+  local inputs = { "deadbeef", "facefeed", "baadc0de" }
+  local out = entropy_hash_luaint(inputs)
+  print("Out: " .. json.encode(out))
+end
+global function hashEntropy(msg: Message): boolean 
+  print("entered hash entropy")
+  local data = (json.decode(msg.Data) as HashEntropyData)
+  local components = data.components
+  print("components: " .. json.encode(components))
+  local dataArray = {}
+  for _, value in ipairs(components) do
+    table.insert(dataArray, value)
+  end
+  print("dataArray: " .. json.encode(dataArray))
+  local hashedEntropy = entropy_hash_luaint(dataArray)
+  
+  if hashedEntropy then
+    msg.reply({ Action = "Hash-Entropy", Data =  hashedEntropy})
+  else
+    msg.reply({ Action = "Failed-Hash-Entropy", Data = json.encode({request_id = data.requestId, error = "Error"}) })
     return false
- end
+  end
+  return true
 end
 
 -- Add handlers
 Handlers.add('info', Handlers.utils.hasMatchingTag('Action', 'Info'), infoHandler)
 Handlers.add('ping', Handlers.utils.hasMatchingTag('Action', 'Ping'), pingHandler)
-Handlers.add('validateCheckpoint', Handlers.utils.hasMatchingTag('Action', 'Validate-Checkpoint'), validateCheckpointHandler)
-Handlers.add('validateOutput', Handlers.utils.hasMatchingTag('Action', 'Validate-Output'), validateOutputHandler)
+Handlers.add('validatePuzzle', Handlers.utils.hasMatchingTag('Action', 'Validate-Puzzle'), validatePuzzleHandler)
+Handlers.add('hashEntropy', Handlers.utils.hasMatchingTag('Action', 'Hash-Entropy'), hashEntropy)
 
 print("Successfully loaded verification process")

@@ -33,6 +33,15 @@ end
   global function check_modulus_result(input: string, modulus: string, expected: string): boolean
     
   end
+  global function compute_phi_and_n(p: string, q: string): {string, string}
+    
+  end
+  global function solve_time_lock_puzzle(input: string, squarings: string, modulus: string, expected: string): boolean
+    
+  end
+  global function entropy_hash_luaint(input: {string}): string
+    
+  end
 
 global record Message
   Id: string
